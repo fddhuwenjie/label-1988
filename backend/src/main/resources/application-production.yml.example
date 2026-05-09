@@ -1,0 +1,9 @@
+# 生产环境配置示例 - 复制为 application-production.yml 并修改
+server:
+  port: 8080
+
+# 生产环境 CORS：限制为实际前端域名，多个用逗号分隔
+# 例: https://app.example.com,https://admin.example.com
+app:
+  cors:
+    allowed-origins: https://your-frontend-domain.com

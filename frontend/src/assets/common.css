@@ -1,0 +1,62 @@
+/**
+ * 通用样式类，用于替代重复的内联样式，保持 UI 一致性
+ */
+
+/* 工具栏 */
+.btn-toolbar-gap {
+  margin-left: 8px;
+}
+
+/* 表单 - 请求头输入 */
+.input-header-key {
+  width: 200px;
+}
+
+.input-header-value {
+  width: 300px;
+  margin-left: 8px;
+}
+
+/* 表单 - Alert 间距 */
+.alert-mb {
+  margin-bottom: 12px;
+}
+
+/* 表格内 Select 全宽 */
+.select-full {
+  width: 100%;
+}
+
+/* 块级按钮/链接上边距 */
+.block-mt {
+  margin-top: 8px;
+}
+
+/* 筛选器 Select */
+.select-filter {
+  width: 200px;
+}
+
+.select-filter-sm {
+  width: 120px;
+}
+
+/* 错误提示 */
+.hint-error {
+  color: #cf1322;
+}
+
+/* 耗时警告色（>1000ms 时使用） */
+.duration-warn {
+  color: #faad14;
+}
+
+/* 统计成功色（作用于 a-statistic 的 value 元素） */
+.stat-success .ant-statistic-content-value {
+  color: #3f8600;
+}
+
+/* 统计失败色 */
+.stat-failed .ant-statistic-content-value {
+  color: #cf1322;
+}
