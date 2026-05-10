@@ -21,6 +21,7 @@ public class ExecutionLog {
     private Integer pushStatus;
     private String status; // SUCCESS, FAILED, PARTIAL
     private String errorMessage;
+    private Integer retryCount;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime executedAt;
     private Long duration; // milliseconds

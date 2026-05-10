@@ -198,6 +198,7 @@ public class MockDataStore {
         binding1.setFieldBindings(fieldBindings);
         binding1.setCronExpression("0 0/5 * * * ?");
         binding1.setEnabled(true);
+        binding1.setMaxRetryCount(3);
         binding1.setCreatedAt(LocalDateTime.now().minusDays(3));
         binding1.setUpdatedAt(LocalDateTime.now());
         bindings.put(binding1.getId(), binding1);
@@ -220,6 +221,7 @@ public class MockDataStore {
             log.setPushStatus(200);
             log.setStatus(i % 3 == 0 ? "FAILED" : "SUCCESS");
             log.setErrorMessage(i % 3 == 0 ? "Connection timeout" : null);
+            log.setRetryCount(0);
             log.setExecutedAt(LocalDateTime.now().minusMinutes(i * 5));
             log.setDuration(100L + i * 50);
             executionLogs.add(log);

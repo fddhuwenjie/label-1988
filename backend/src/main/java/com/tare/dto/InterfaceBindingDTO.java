@@ -2,8 +2,11 @@ package com.tare.dto;
 
 import com.tare.validator.CronExpressionValidator;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -30,6 +33,13 @@ public class InterfaceBindingDTO {
     
     @NotNull(message = "启用状态不能为空")
     private Boolean enabled = true;
+
+    @Pattern(regexp = "^$|^https?://.*", message = "Webhook URL 必须是合法的 http/https 地址")
+    private String webhookUrl;
+
+    @Min(value = 0, message = "最大重试次数不能小于0")
+    @Max(value = 10, message = "最大重试次数不能超过10")
+    private Integer maxRetryCount = 3;
     
     @Data
     public static class FieldBindingDTO {

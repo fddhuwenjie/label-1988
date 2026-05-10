@@ -49,13 +49,13 @@
       :confirm-loading="submitting"
       @ok="handleSubmit"
     >
-      <a-form :model="form" layout="vertical">
-        <a-form-item label="配置名称" required>
+      <a-form ref="formRef" :model="form" :rules="formRules" layout="vertical">
+        <a-form-item label="配置名称" name="name" required>
           <a-input v-model:value="form.name" placeholder="请输入配置名称" :maxlength="100" show-count />
         </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="数据源接口" required>
+            <a-form-item label="数据源接口" name="dataSourceId" required>
               <a-select 
                 v-model:value="form.dataSourceId" 
                 placeholder="选择数据源接口" 
@@ -69,7 +69,7 @@
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="推送接口" required>
+            <a-form-item label="推送接口" name="pushInterfaceId" required>
               <a-select 
                 v-model:value="form.pushInterfaceId" 
                 placeholder="选择推送接口" 
@@ -85,7 +85,7 @@
         </a-row>
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="Cron表达式">
+            <a-form-item label="Cron表达式" name="cronExpression">
               <a-input v-model:value="form.cronExpression" placeholder="0 0/5 * * * ?" />
               <div class="hint">
                 例: 0 0/5 * * * ? (每5分钟) | 0 0 * * * ? (每小时) | 0 0 0 * * ? (每天)
@@ -95,6 +95,20 @@
           <a-col :span="12">
             <a-form-item label="状态">
               <a-switch v-model:checked="form.enabled" checked-children="启用" un-checked-children="禁用" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="Webhook URL" name="webhookUrl">
+              <a-input v-model:value="form.webhookUrl" placeholder="https://example.com/webhook" />
+              <div class="hint">执行失败告警通知地址，需为合法 http/https 地址</div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="最大重试次数" name="maxRetryCount">
+              <a-input-number v-model:value="form.maxRetryCount" :min="0" :max="10" :step="1" style="width: 100%" />
+              <div class="hint">执行失败后自动重试次数，默认3次（0表示不重试）</div>
             </a-form-item>
           </a-col>
         </a-row>
@@ -171,6 +185,24 @@ const dataSources = ref([])
 const pushInterfaces = ref([])
 const modalVisible = ref(false)
 const editingId = ref(null)
+const formRef = ref(null)
+
+const webhookUrlValidator = async (_rule, value) => {
+  if (!value || value.trim() === '') {
+    return Promise.resolve()
+  }
+  if (!/^https?:\/\/.+/.test(value)) {
+    return Promise.reject('Webhook URL 必须是合法的 http/https 地址')
+  }
+  return Promise.resolve()
+}
+
+const formRules = {
+  name: [{ required: true, message: '请输入配置名称', whitespace: true }],
+  dataSourceId: [{ required: true, message: '请选择数据源接口' }],
+  pushInterfaceId: [{ required: true, message: '请选择推送接口' }],
+  webhookUrl: [{ validator: webhookUrlValidator }]
+}
 
 const form = reactive({
   name: '',
@@ -178,7 +210,9 @@ const form = reactive({
   pushInterfaceId: null,
   fieldBindings: [],
   cronExpression: '',
-  enabled: true
+  enabled: true,
+  webhookUrl: '',
+  maxRetryCount: 3
 })
 
 const columns = [
@@ -232,24 +266,27 @@ const fetchList = async () => {
 const showModal = (record = null) => {
   if (record) {
     editingId.value = record.id
-    Object.assign(form, { ...record, fieldBindings: [...(record.fieldBindings || [])] })
+    Object.assign(form, { 
+      ...record, 
+      fieldBindings: [...(record.fieldBindings || [])],
+      webhookUrl: record.webhookUrl || '',
+      maxRetryCount: record.maxRetryCount ?? 3
+    })
   } else {
     editingId.value = null
     Object.assign(form, { 
       name: '', dataSourceId: null, pushInterfaceId: null, 
-      fieldBindings: [], cronExpression: '', enabled: true 
+      fieldBindings: [], cronExpression: '', enabled: true,
+      webhookUrl: '', maxRetryCount: 3
     })
   }
   modalVisible.value = true
 }
 
 const handleSubmit = async () => {
-  if (!form.name?.trim()) {
-    message.warning('请输入配置名称')
-    return
-  }
-  if (!form.dataSourceId || !form.pushInterfaceId) {
-    message.warning('请选择数据源接口和推送接口')
+  try {
+    await formRef.value?.validate()
+  } catch {
     return
   }
   
