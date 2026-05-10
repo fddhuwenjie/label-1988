@@ -27,24 +27,34 @@ public class ExecutionService {
 
     private final MockDataStore dataStore;
     private final PostProcessorService postProcessorService;
+    private final RetryService retryService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void executeBinding(InterfaceBinding binding) {
-        // 非 HTTP 请求场景（如定时任务）注入 traceId，便于日志关联
+        doExecuteBinding(binding, 0);
+    }
+
+    public void executeBindingWithRetryCount(InterfaceBinding binding, int retryCount) {
+        doExecuteBinding(binding, retryCount);
+    }
+
+    private void doExecuteBinding(InterfaceBinding binding, int retryCount) {
         boolean mdcInjected = false;
         if (MDC.get("traceId") == null) {
             MDC.put("traceId", "exec-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
             mdcInjected = true;
         }
 
-        log.info("开始执行绑定配置: id={}, name={}", binding.getId(), binding.getName());
+        log.info("开始执行绑定配置: id={}, name={}, retryCount={}", binding.getId(), binding.getName(), retryCount);
 
         ExecutionLog executionLog = new ExecutionLog();
         executionLog.setBindingId(binding.getId());
         executionLog.setBindingName(binding.getName());
+        executionLog.setRetryCount(retryCount);
         executionLog.setExecutedAt(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         
         long startTime = System.currentTimeMillis();
+        String errorMessage = null;
         
         try {
             DataSourceInterface dataSource = dataStore.getDataSourceInterface(binding.getDataSourceId());
@@ -95,10 +105,10 @@ public class ExecutionService {
             dataStore.saveBinding(binding);
             
         } catch (Exception e) {
-            log.error("绑定配置执行失败: id={}, error={}", binding.getId(), e.getMessage(), e);
+            log.error("绑定配置执行失败: id={}, retryCount={}, error={}", binding.getId(), retryCount, e.getMessage(), e);
+            errorMessage = e.getMessage();
             executionLog.setStatus("FAILED");
-            executionLog.setErrorMessage(e.getMessage());
-            // 从 HTTP 异常中提取并记录实际状态码
+            executionLog.setErrorMessage(errorMessage);
             if (e instanceof RestClientResponseException ex) {
                 int statusCode = ex.getStatusCode().value();
                 if (executionLog.getDataSourceStatus() == null) {
@@ -113,6 +123,10 @@ public class ExecutionService {
             if (mdcInjected) {
                 MDC.remove("traceId");
             }
+        }
+
+        if (errorMessage != null && retryCount == 0) {
+            retryService.scheduleRetry(binding, errorMessage, 0);
         }
     }
 

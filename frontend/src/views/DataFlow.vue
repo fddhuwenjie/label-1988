@@ -148,14 +148,16 @@ import { ref, computed, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   VueFlow,
-  Background,
-  Controls,
-  MiniMap,
   useVueFlow,
   MarkerType
 } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+import '@vue-flow/minimap/dist/style.css'
 import { ReloadOutlined, LayoutOutlined } from '@ant-design/icons-vue'
 import { bindingApi, dataSourceApi, pushApi } from '../api'
 

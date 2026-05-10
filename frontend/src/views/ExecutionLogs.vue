@@ -46,6 +46,11 @@
             {{ record.status === 'SUCCESS' ? '成功' : '失败' }}
           </a-tag>
         </template>
+        <template v-if="column.key === 'retryCount'">
+          <span :class="{ 'retry-count-active': record.retryCount > 0 }">
+            {{ record.retryCount ?? 0 }}
+          </span>
+        </template>
         <template v-if="column.key === 'executedAt'">
           {{ formatTime(record.executedAt) }}
         </template>
@@ -72,6 +77,7 @@
         <a-descriptions-item label="推送接口">{{ currentLog.pushInterfaceName }}</a-descriptions-item>
         <a-descriptions-item label="执行时间">{{ formatTime(currentLog.executedAt) }}</a-descriptions-item>
         <a-descriptions-item label="耗时">{{ currentLog.duration }}ms</a-descriptions-item>
+        <a-descriptions-item label="重试次数">{{ currentLog.retryCount ?? 0 }}</a-descriptions-item>
         <a-descriptions-item label="错误信息" :span="2" v-if="currentLog.errorMessage">
           <a-alert type="error" :message="currentLog.errorMessage" show-icon />
         </a-descriptions-item>
@@ -136,6 +142,7 @@ const columns = [
   { title: '数据源', dataIndex: 'dataSourceName', key: 'dataSourceName' },
   { title: '推送接口', dataIndex: 'pushInterfaceName', key: 'pushInterfaceName' },
   { title: '状态', key: 'status', width: 80 },
+  { title: '重试次数', key: 'retryCount', width: 90 },
   { title: '执行时间', key: 'executedAt', width: 180 },
   { title: '耗时', key: 'duration', width: 100 },
   { title: '操作', key: 'action', width: 80 }
@@ -222,6 +229,7 @@ onMounted(() => {
 .stats-row { margin-bottom: 24px; padding: 16px; background: #fafafa; border-radius: 4px; }
 .toolbar { margin-bottom: 16px; }
 .json-label { font-weight: bold; margin-bottom: 8px; }
+.retry-count-active { color: #fa8c16; font-weight: 500; }
 .json-box {
   background: #f5f5f5;
   padding: 12px;

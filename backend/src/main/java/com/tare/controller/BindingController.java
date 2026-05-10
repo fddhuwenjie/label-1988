@@ -141,6 +141,8 @@ public class BindingController {
         binding.setPushInterfaceId(dto.getPushInterfaceId());
         binding.setCronExpression(dto.getCronExpression());
         binding.setEnabled(dto.getEnabled());
+        binding.setWebhookUrl(dto.getWebhookUrl());
+        binding.setMaxRetryCount(dto.getMaxRetryCount());
         
         if (dto.getFieldBindings() != null) {
             binding.setFieldBindings(dto.getFieldBindings().stream()

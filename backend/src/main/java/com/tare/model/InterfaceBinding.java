@@ -14,6 +14,8 @@ public class InterfaceBinding {
     private List<FieldBinding> fieldBindings;
     private String cronExpression; // Cron expression for scheduling
     private Boolean enabled;
+    private String webhookUrl;
+    private Integer maxRetryCount;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
