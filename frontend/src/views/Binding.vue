@@ -98,6 +98,35 @@
             </a-form-item>
           </a-col>
         </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="告警 Webhook URL">
+              <a-input 
+                v-model:value="form.webhookUrl" 
+                placeholder="https://example.com/alarm" 
+                :status="webhookError ? 'error' : ''"
+              />
+              <div class="hint">
+                执行失败并达到最大重试次数后发送告警通知 (可选)
+              </div>
+              <div v-if="webhookError" class="error-text">{{ webhookError }}</div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="最大重试次数">
+              <a-input-number 
+                v-model:value="form.maxRetryCount" 
+                :min="0" 
+                :max="10" 
+                :style="{ width: '100%' }"
+                placeholder="3"
+              />
+              <div class="hint">
+                失败后自动重试次数，默认 3 次 (0-10)
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
         <a-form-item label="字段绑定">
           <a-alert 
             v-if="!form.dataSourceId || !form.pushInterfaceId" 
@@ -171,6 +200,7 @@ const dataSources = ref([])
 const pushInterfaces = ref([])
 const modalVisible = ref(false)
 const editingId = ref(null)
+const webhookError = ref('')
 
 const form = reactive({
   name: '',
@@ -178,8 +208,25 @@ const form = reactive({
   pushInterfaceId: null,
   fieldBindings: [],
   cronExpression: '',
-  enabled: true
+  enabled: true,
+  webhookUrl: '',
+  maxRetryCount: 3
 })
+
+const webhookUrlPattern = /^https?:\/\/.+/
+
+const validateWebhook = () => {
+  if (!form.webhookUrl || form.webhookUrl.trim() === '') {
+    webhookError.value = ''
+    return true
+  }
+  if (!webhookUrlPattern.test(form.webhookUrl)) {
+    webhookError.value = 'Webhook URL 必须是合法的 http/https 地址'
+    return false
+  }
+  webhookError.value = ''
+  return true
+}
 
 const columns = [
   { title: '配置名称', dataIndex: 'name', key: 'name' },
@@ -232,14 +279,21 @@ const fetchList = async () => {
 const showModal = (record = null) => {
   if (record) {
     editingId.value = record.id
-    Object.assign(form, { ...record, fieldBindings: [...(record.fieldBindings || [])] })
+    Object.assign(form, { 
+      ...record, 
+      fieldBindings: [...(record.fieldBindings || [])],
+      webhookUrl: record.webhookUrl || '',
+      maxRetryCount: record.maxRetryCount !== undefined ? record.maxRetryCount : 3
+    })
   } else {
     editingId.value = null
     Object.assign(form, { 
       name: '', dataSourceId: null, pushInterfaceId: null, 
-      fieldBindings: [], cronExpression: '', enabled: true 
+      fieldBindings: [], cronExpression: '', enabled: true,
+      webhookUrl: '', maxRetryCount: 3
     })
   }
+  webhookError.value = ''
   modalVisible.value = true
 }
 
@@ -250,6 +304,10 @@ const handleSubmit = async () => {
   }
   if (!form.dataSourceId || !form.pushInterfaceId) {
     message.warning('请选择数据源接口和推送接口')
+    return
+  }
+  if (!validateWebhook()) {
+    message.warning(webhookError.value)
     return
   }
   
@@ -327,4 +385,5 @@ onMounted(fetchList)
 <style scoped>
 .toolbar { margin-bottom: 16px; }
 .hint { font-size: 12px; color: #999; margin-top: 4px; }
+.error-text { font-size: 12px; color: #ff4d4f; margin-top: 4px; }
 </style>

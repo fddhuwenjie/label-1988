@@ -12,8 +12,10 @@ public class InterfaceBinding {
     private String dataSourceId;
     private String pushInterfaceId;
     private List<FieldBinding> fieldBindings;
-    private String cronExpression; // Cron expression for scheduling
+    private String cronExpression;
     private Boolean enabled;
+    private String webhookUrl;
+    private Integer maxRetryCount = 3;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

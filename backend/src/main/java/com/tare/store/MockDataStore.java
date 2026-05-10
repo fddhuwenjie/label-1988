@@ -198,6 +198,8 @@ public class MockDataStore {
         binding1.setFieldBindings(fieldBindings);
         binding1.setCronExpression("0 0/5 * * * ?");
         binding1.setEnabled(true);
+        binding1.setWebhookUrl("");
+        binding1.setMaxRetryCount(3);
         binding1.setCreatedAt(LocalDateTime.now().minusDays(3));
         binding1.setUpdatedAt(LocalDateTime.now());
         bindings.put(binding1.getId(), binding1);

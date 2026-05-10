@@ -141,7 +141,9 @@ public class BindingController {
         binding.setPushInterfaceId(dto.getPushInterfaceId());
         binding.setCronExpression(dto.getCronExpression());
         binding.setEnabled(dto.getEnabled());
-        
+        binding.setWebhookUrl(dto.getWebhookUrl());
+        binding.setMaxRetryCount(dto.getMaxRetryCount() != null ? dto.getMaxRetryCount() : 3);
+
         if (dto.getFieldBindings() != null) {
             binding.setFieldBindings(dto.getFieldBindings().stream()
                     .map(fb -> {
@@ -153,7 +155,7 @@ public class BindingController {
                     })
                     .collect(Collectors.toList()));
         }
-        
+
         return binding;
     }
 }
