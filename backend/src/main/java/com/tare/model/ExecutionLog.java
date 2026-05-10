@@ -19,9 +19,10 @@ public class ExecutionLog {
     private String pushRequest;
     private String pushResponse;
     private Integer pushStatus;
-    private String status; // SUCCESS, FAILED, PARTIAL
+    private String status;
     private String errorMessage;
+    private Integer retryCount = 0;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime executedAt;
-    private Long duration; // milliseconds
+    private Long duration;
 }

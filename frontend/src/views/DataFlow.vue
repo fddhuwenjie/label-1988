@@ -148,12 +148,12 @@ import { ref, computed, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   VueFlow,
-  Background,
-  Controls,
-  MiniMap,
   useVueFlow,
   MarkerType
 } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import { ReloadOutlined, LayoutOutlined } from '@ant-design/icons-vue'

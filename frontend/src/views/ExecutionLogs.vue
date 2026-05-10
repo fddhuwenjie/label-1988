@@ -70,8 +70,9 @@
         </a-descriptions-item>
         <a-descriptions-item label="数据源接口">{{ currentLog.dataSourceName }}</a-descriptions-item>
         <a-descriptions-item label="推送接口">{{ currentLog.pushInterfaceName }}</a-descriptions-item>
-        <a-descriptions-item label="执行时间">{{ formatTime(currentLog.executedAt) }}</a-descriptions-item>
+        <a-descriptions-item label="重试次数">{{ currentLog.retryCount || 0 }}</a-descriptions-item>
         <a-descriptions-item label="耗时">{{ currentLog.duration }}ms</a-descriptions-item>
+        <a-descriptions-item label="执行时间">{{ formatTime(currentLog.executedAt) }}</a-descriptions-item>
         <a-descriptions-item label="错误信息" :span="2" v-if="currentLog.errorMessage">
           <a-alert type="error" :message="currentLog.errorMessage" show-icon />
         </a-descriptions-item>
@@ -135,6 +136,7 @@ const columns = [
   { title: '绑定配置', dataIndex: 'bindingName', key: 'bindingName' },
   { title: '数据源', dataIndex: 'dataSourceName', key: 'dataSourceName' },
   { title: '推送接口', dataIndex: 'pushInterfaceName', key: 'pushInterfaceName' },
+  { title: '重试次数', dataIndex: 'retryCount', key: 'retryCount', width: 100 },
   { title: '状态', key: 'status', width: 80 },
   { title: '执行时间', key: 'executedAt', width: 180 },
   { title: '耗时', key: 'duration', width: 100 },
