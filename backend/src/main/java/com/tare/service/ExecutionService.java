@@ -27,15 +27,11 @@ public class ExecutionService {
 
     private final MockDataStore dataStore;
     private final PostProcessorService postProcessorService;
+    private final RetryService retryService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void executeBinding(InterfaceBinding binding) {
-        // 非 HTTP 请求场景（如定时任务）注入 traceId，便于日志关联
-        boolean mdcInjected = false;
-        if (MDC.get("traceId") == null) {
-            MDC.put("traceId", "exec-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-            mdcInjected = true;
-        }
+        boolean mdcInjected = injectTraceIdIfNeeded();
 
         log.info("开始执行绑定配置: id={}, name={}", binding.getId(), binding.getName());
 
@@ -43,75 +39,98 @@ public class ExecutionService {
         executionLog.setBindingId(binding.getId());
         executionLog.setBindingName(binding.getName());
         executionLog.setExecutedAt(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
+        executionLog.setRetryTimes(0);
         
         long startTime = System.currentTimeMillis();
         
         try {
-            DataSourceInterface dataSource = dataStore.getDataSourceInterface(binding.getDataSourceId());
-            PushInterface pushInterface = dataStore.getPushInterface(binding.getPushInterfaceId());
-            
-            if (dataSource == null) {
-                throw new RuntimeException("数据源接口不存在: " + binding.getDataSourceId());
-            }
-            if (pushInterface == null) {
-                throw new RuntimeException("推送接口不存在: " + binding.getPushInterfaceId());
-            }
-            
-            log.debug("数据源: id={}, name={}", dataSource.getId(), dataSource.getName());
-            log.debug("推送接口: id={}, name={}", pushInterface.getId(), pushInterface.getName());
-            
-            executionLog.setDataSourceId(dataSource.getId());
-            executionLog.setDataSourceName(dataSource.getName());
-            executionLog.setPushInterfaceId(pushInterface.getId());
-            executionLog.setPushInterfaceName(pushInterface.getName());
-            
-            String dataSourceRequest = buildDataSourceRequest(dataSource);
-            executionLog.setDataSourceRequest(dataSourceRequest);
-            
-            ResponseEntity<String> dataSourceEntity = callDataSource(dataSource);
-            String dataSourceResponse = dataSourceEntity.getBody();
-            executionLog.setDataSourceStatus(dataSourceEntity.getStatusCode().value());
-            
-            String processedResponse = dataSourceResponse;
-            if (dataSource.getPostProcessor() != null && !dataSource.getPostProcessor().isEmpty()) {
-                log.info("执行数据后置处理: dataSourceId={}", dataSource.getId());
-                processedResponse = postProcessorService.process(dataSourceResponse, dataSource.getPostProcessor());
-            }
-            
-            executionLog.setDataSourceResponse(processedResponse);
-            
-            Map<String, Object> pushRequestData = buildPushRequest(binding, processedResponse, pushInterface);
-            String pushRequest = JSON.toJSONString(pushRequestData);
-            executionLog.setPushRequest(pushRequest);
-            
-            ResponseEntity<String> pushEntity = callPushInterface(pushInterface, pushRequestData);
-            executionLog.setPushResponse(pushEntity.getBody());
-            executionLog.setPushStatus(pushEntity.getStatusCode().value());
-            
-            executionLog.setStatus("SUCCESS");
+            executeBindingInternal(binding, executionLog);
             log.info("绑定配置执行成功: id={}, duration={}ms", binding.getId(), System.currentTimeMillis() - startTime);
-            
-            binding.setLastExecutedAt(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
-            dataStore.saveBinding(binding);
-            
         } catch (Exception e) {
             log.error("绑定配置执行失败: id={}, error={}", binding.getId(), e.getMessage(), e);
             executionLog.setStatus("FAILED");
             executionLog.setErrorMessage(e.getMessage());
-            // 从 HTTP 异常中提取并记录实际状态码
-            if (e instanceof RestClientResponseException ex) {
-                int statusCode = ex.getStatusCode().value();
-                if (executionLog.getDataSourceStatus() == null) {
-                    executionLog.setDataSourceStatus(statusCode);
-                } else {
-                    executionLog.setPushStatus(statusCode);
-                }
+            extractHttpStatusFromException(e, executionLog);
+            
+            Integer maxRetryTimes = binding.getMaxRetryTimes();
+            if (maxRetryTimes == null) maxRetryTimes = 3;
+            
+            if (maxRetryTimes > 0) {
+                log.info("触发重试机制: bindingId={}, maxRetryTimes={}", binding.getId(), maxRetryTimes);
+                retryService.scheduleRetry(binding, 0, e.getMessage());
             }
         } finally {
             executionLog.setDuration(System.currentTimeMillis() - startTime);
             dataStore.addExecutionLog(executionLog);
             if (mdcInjected) {
                 MDC.remove("traceId");
+            }
+        }
+    }
+
+    public void executeBindingInternal(InterfaceBinding binding, ExecutionLog executionLog) throws Exception {
+        DataSourceInterface dataSource = dataStore.getDataSourceInterface(binding.getDataSourceId());
+        PushInterface pushInterface = dataStore.getPushInterface(binding.getPushInterfaceId());
+        
+        if (dataSource == null) {
+            throw new RuntimeException("数据源接口不存在: " + binding.getDataSourceId());
+        }
+        if (pushInterface == null) {
+            throw new RuntimeException("推送接口不存在: " + binding.getPushInterfaceId());
+        }
+        
+        log.debug("数据源: id={}, name={}", dataSource.getId(), dataSource.getName());
+        log.debug("推送接口: id={}, name={}", pushInterface.getId(), pushInterface.getName());
+        
+        executionLog.setDataSourceId(dataSource.getId());
+        executionLog.setDataSourceName(dataSource.getName());
+        executionLog.setPushInterfaceId(pushInterface.getId());
+        executionLog.setPushInterfaceName(pushInterface.getName());
+        
+        String dataSourceRequest = buildDataSourceRequest(dataSource);
+        executionLog.setDataSourceRequest(dataSourceRequest);
+        
+        ResponseEntity<String> dataSourceEntity = callDataSource(dataSource);
+        String dataSourceResponse = dataSourceEntity.getBody();
+        executionLog.setDataSourceStatus(dataSourceEntity.getStatusCode().value());
+        
+        String processedResponse = dataSourceResponse;
+        if (dataSource.getPostProcessor() != null && !dataSource.getPostProcessor().isEmpty()) {
+            log.info("执行数据后置处理: dataSourceId={}", dataSource.getId());
+            processedResponse = postProcessorService.process(dataSourceResponse, dataSource.getPostProcessor());
+        }
+        
+        executionLog.setDataSourceResponse(processedResponse);
+        
+        Map<String, Object> pushRequestData = buildPushRequest(binding, processedResponse, pushInterface);
+        String pushRequest = JSON.toJSONString(pushRequestData);
+        executionLog.setPushRequest(pushRequest);
+        
+        ResponseEntity<String> pushEntity = callPushInterface(pushInterface, pushRequestData);
+        executionLog.setPushResponse(pushEntity.getBody());
+        executionLog.setPushStatus(pushEntity.getStatusCode().value());
+        
+        executionLog.setStatus("SUCCESS");
+        
+        binding.setLastExecutedAt(LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
+        dataStore.saveBinding(binding);
+    }
+
+    private boolean injectTraceIdIfNeeded() {
+        if (MDC.get("traceId") == null) {
+            MDC.put("traceId", "exec-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+            return true;
+        }
+        return false;
+    }
+
+    private void extractHttpStatusFromException(Exception e, ExecutionLog executionLog) {
+        if (e instanceof RestClientResponseException ex) {
+            int statusCode = ex.getStatusCode().value();
+            if (executionLog.getDataSourceStatus() == null) {
+                executionLog.setDataSourceStatus(statusCode);
+            } else {
+                executionLog.setPushStatus(statusCode);
             }
         }
     }
