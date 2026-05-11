@@ -98,6 +98,38 @@
             </a-form-item>
           </a-col>
         </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item 
+              label="最大重试次数" 
+              :help="maxRetryError" 
+              :validate-status="maxRetryError ? 'error' : ''"
+            >
+              <a-input-number 
+                v-model:value="form.maxRetryTimes" 
+                :min="0" 
+                :max="10" 
+                class="input-full"
+                @change="validateMaxRetryTimes"
+              />
+              <div class="hint">默认 3 次，范围 0-10</div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item 
+              label="告警 Webhook URL"
+              :help="webhookError"
+              :validate-status="webhookError ? 'error' : ''"
+            >
+              <a-input 
+                v-model:value="form.webhookUrl" 
+                placeholder="https://example.com/webhook/alert"
+                @blur="validateWebhookUrl"
+              />
+              <div class="hint">失败重试达到最大次数时发送告警通知（可选）</div>
+            </a-form-item>
+          </a-col>
+        </a-row>
         <a-form-item label="字段绑定">
           <a-alert 
             v-if="!form.dataSourceId || !form.pushInterfaceId" 
@@ -178,8 +210,37 @@ const form = reactive({
   pushInterfaceId: null,
   fieldBindings: [],
   cronExpression: '',
-  enabled: true
+  enabled: true,
+  maxRetryTimes: 3,
+  webhookUrl: ''
 })
+
+const maxRetryError = ref('')
+const webhookError = ref('')
+
+const validateMaxRetryTimes = (value) => {
+  if (value !== null && value !== undefined && (value < 0 || value > 10)) {
+    maxRetryError.value = '最大重试次数必须在 0-10 之间'
+    return false
+  }
+  maxRetryError.value = ''
+  return true
+}
+
+const validateWebhookUrl = () => {
+  const url = form.webhookUrl?.trim()
+  if (!url) {
+    webhookError.value = ''
+    return true
+  }
+  const urlPattern = /^https?:\/\/.+/i
+  if (!urlPattern.test(url)) {
+    webhookError.value = 'Webhook URL 必须是合法的 http/https 地址'
+    return false
+  }
+  webhookError.value = ''
+  return true
+}
 
 const columns = [
   { title: '配置名称', dataIndex: 'name', key: 'name' },
@@ -230,14 +291,22 @@ const fetchList = async () => {
 }
 
 const showModal = (record = null) => {
+  maxRetryError.value = ''
+  webhookError.value = ''
   if (record) {
     editingId.value = record.id
-    Object.assign(form, { ...record, fieldBindings: [...(record.fieldBindings || [])] })
+    Object.assign(form, { 
+      ...record, 
+      fieldBindings: [...(record.fieldBindings || [])],
+      maxRetryTimes: record.maxRetryTimes ?? 3,
+      webhookUrl: record.webhookUrl ?? ''
+    })
   } else {
     editingId.value = null
     Object.assign(form, { 
       name: '', dataSourceId: null, pushInterfaceId: null, 
-      fieldBindings: [], cronExpression: '', enabled: true 
+      fieldBindings: [], cronExpression: '', enabled: true,
+      maxRetryTimes: 3, webhookUrl: ''
     })
   }
   modalVisible.value = true
@@ -250,6 +319,10 @@ const handleSubmit = async () => {
   }
   if (!form.dataSourceId || !form.pushInterfaceId) {
     message.warning('请选择数据源接口和推送接口')
+    return
+  }
+  if (!validateMaxRetryTimes(form.maxRetryTimes) || !validateWebhookUrl()) {
+    message.warning('请检查表单填写是否正确')
     return
   }
   
@@ -327,4 +400,5 @@ onMounted(fetchList)
 <style scoped>
 .toolbar { margin-bottom: 16px; }
 .hint { font-size: 12px; color: #999; margin-top: 4px; }
+.input-full { width: 100%; }
 </style>

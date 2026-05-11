@@ -41,6 +41,10 @@
       @change="handleTableChange"
     >
       <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'retryTimes'">
+          <a-tag v-if="record.retryTimes > 0" color="orange">{{ record.retryTimes }} 次</a-tag>
+          <span v-else class="text-muted">-</span>
+        </template>
         <template v-if="column.key === 'status'">
           <a-tag :color="record.status === 'SUCCESS' ? 'green' : 'red'">
             {{ record.status === 'SUCCESS' ? '成功' : '失败' }}
@@ -70,6 +74,10 @@
         </a-descriptions-item>
         <a-descriptions-item label="数据源接口">{{ currentLog.dataSourceName }}</a-descriptions-item>
         <a-descriptions-item label="推送接口">{{ currentLog.pushInterfaceName }}</a-descriptions-item>
+        <a-descriptions-item label="重试次数">
+          <a-tag v-if="currentLog.retryTimes > 0" color="orange">{{ currentLog.retryTimes }} 次</a-tag>
+          <span v-else class="text-muted">首次执行</span>
+        </a-descriptions-item>
         <a-descriptions-item label="执行时间">{{ formatTime(currentLog.executedAt) }}</a-descriptions-item>
         <a-descriptions-item label="耗时">{{ currentLog.duration }}ms</a-descriptions-item>
         <a-descriptions-item label="错误信息" :span="2" v-if="currentLog.errorMessage">
@@ -135,6 +143,7 @@ const columns = [
   { title: '绑定配置', dataIndex: 'bindingName', key: 'bindingName' },
   { title: '数据源', dataIndex: 'dataSourceName', key: 'dataSourceName' },
   { title: '推送接口', dataIndex: 'pushInterfaceName', key: 'pushInterfaceName' },
+  { title: '重试次数', key: 'retryTimes', width: 90, align: 'center' },
   { title: '状态', key: 'status', width: 80 },
   { title: '执行时间', key: 'executedAt', width: 180 },
   { title: '耗时', key: 'duration', width: 100 },
@@ -230,4 +239,5 @@ onMounted(() => {
   overflow: auto;
   font-size: 12px;
 }
+.text-muted { color: #999; }
 </style>
